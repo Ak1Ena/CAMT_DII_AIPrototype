@@ -139,9 +139,8 @@ def resume():
         <div class="item-header">
             <div>
                 <span class="item-title">Chiang Mai University (CMU)</span> | Chiang Mai, Thailand
-                <div class="item-subtitle">[Degree Name, e.g., Bachelor of Science in Computer Engineering]</div>
+                <div class="item-subtitle">CAMT, CMU</div>
             </div>
-            <div class="item-date">Expected Graduation: [Year]</div>
         </div>
     </section>
 
@@ -152,11 +151,8 @@ def resume():
                 <span class="item-title">Appman</span> 
                 <div class="item-subtitle">Software Developer Intern</div>
             </div>
-            <div class="item-date">[Start Month, Year] – Present</div>
+            <div class="item-date">1 Dec 2025 – Present</div>
         </div>
-        <ul>
-            <li>Manage complex version control operations using Git, including branch merging, resolving conflicts, and managing SDK dependencies (e.g., FaceTec SDK versioning) to ensure stability in the main branch.</li>
-        </ul>
     </section>
 
     <section>
@@ -193,5 +189,5 @@ def resume():
 </html>
     """
 if __name__ == "__main__":   # run code 
-    app.run(host='localhost',debug=True,port=5001)#host='0.0.0.0' = run on internet ,port=5001 (port บน server เหมือนประตู) / localhost รันบนเครื่องเรายังไม่ใช่ internet
+    app.run(host='0.0.0.0',debug=True,port=5002)#host='0.0.0.0' = run on internet ,port=5002 (port บน server เหมือนประตู) / localhost รันบนเครื่องเรายังไม่ใช่ internet
 
