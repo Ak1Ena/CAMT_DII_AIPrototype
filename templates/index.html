@@ -1,226 +1,379 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Classifier — Chihuahua, or Muffin?</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Chihuahua or Muffin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --paper:#f7f3ed;
+  --paper2:#f0ead9;
+  --ink:#2b2318;
+  --ink2:#6b5c47;
+  --ink3:#a89880;
+  --line:#d8cfc0;
+  --rust:#9b3e1f;
+  --rust-l:#f0e4dd;
+  --honey:#c4802a;
+}
+
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'DM Mono',monospace;
+  font-weight:300;
+  min-height:100vh;
+  line-height:1.6;
+}
+
+.wrap{
+  max-width:700px;
+  margin:0 auto;
+  padding:4rem 2rem 6rem;
+}
+
+.site-head{margin-bottom:4rem}
+.site-head h1{
+  font-family:'Lora',serif;
+  font-weight:400;
+  font-size:2rem;
+  letter-spacing:-.02em;
+  color:var(--ink);
+}
+.site-head h1 em{font-style:italic;color:var(--rust)}
+.site-head p{font-size:.7rem;color:var(--ink3);letter-spacing:.06em;margin-top:.4rem}
+
+.label{
+  font-size:.62rem;
+  letter-spacing:.18em;
+  color:var(--ink3);
+  text-transform:uppercase;
+  margin-bottom:1rem;
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+}
+.label::after{content:'';flex:1;height:1px;background:var(--line)}
+
+.upload-section{margin-bottom:2.5rem}
+.drop-zone{
+  position:relative;
+  border:1px dashed var(--line);
+  background:var(--paper2);
+  min-height:220px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:1rem;cursor:pointer;
+  transition:background .2s,border-color .2s;
+  overflow:hidden;
+}
+.drop-zone:hover,.drop-zone.over{background:#ede6d6;border-color:var(--ink3)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-inner{display:flex;flex-direction:column;align-items:center;gap:.6rem;pointer-events:none}
+.drop-glyph{font-size:2rem;line-height:1;opacity:.3}
+.drop-inner h3{
+  font-family:'Lora',serif;font-weight:400;font-size:.88rem;color:var(--ink2);
+}
+.drop-inner span{font-size:.62rem;color:var(--ink3)}
+#preview{display:none;max-width:100%;max-height:260px;object-fit:contain}
+#placeholder{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+
+.classify-btn{
+  width:100%;
+  border:1px solid var(--ink);
+  background:transparent;color:var(--ink);
+  font-family:'Lora',serif;
+  font-size:1rem;font-weight:400;font-style:italic;
+  padding:.85rem;cursor:pointer;letter-spacing:.03em;
+  transition:background .2s,color .2s;
+  margin-top:.75rem;
+}
+.classify-btn:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.classify-btn:disabled{opacity:.3;cursor:not-allowed}
+
+.spinner{
+  display:none;width:20px;height:20px;
+  border:1.5px solid var(--line);border-top-color:var(--ink2);
+  border-radius:50%;animation:spin .8s linear infinite;margin:2rem auto;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.err{
+  display:none;font-size:.68rem;color:var(--rust);
+  padding:.75rem 1rem;border:1px solid #e8c5b8;
+  background:var(--rust-l);line-height:1.6;margin-top:1rem;
+}
+
+.result-section{margin-top:2.5rem}
+.result-empty{text-align:center;padding:3rem 0;color:var(--ink3)}
+.result-empty .big{
+  font-family:'Lora',serif;font-size:5rem;font-style:italic;
+  opacity:.15;display:block;line-height:1;margin-bottom:.75rem;
+}
+.result-empty p{font-size:.68rem;letter-spacing:.05em}
+
+.result-card{display:none;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.verdict-row{display:flex;align-items:baseline;gap:1rem;margin-bottom:1.75rem}
+.verdict-word{
+  font-family:'Lora',serif;font-size:2.8rem;
+  font-weight:400;letter-spacing:-.02em;line-height:1;
+}
+.verdict-word.chihuahua{color:var(--rust)}
+.verdict-word.muffin{color:var(--honey)}
+.verdict-pct{font-size:.72rem;color:var(--ink3)}
+
+.bars{display:flex;flex-direction:column;gap:.9rem;margin-bottom:1.75rem}
+.bar-meta{
+  display:flex;justify-content:space-between;
+  font-size:.62rem;color:var(--ink3);margin-bottom:.35rem;letter-spacing:.04em;
+}
+.bar-track{height:2px;background:var(--line);position:relative}
+.bar-fill{
+  height:100%;width:0;
+  transition:width 1s cubic-bezier(.22,1,.36,1);
+  position:absolute;top:0;left:0;
+}
+.bar-fill.chihuahua{background:var(--rust)}
+.bar-fill.muffin{background:var(--honey)}
+
+.reasoning{
+  display:none;font-size:.7rem;color:var(--ink2);
+  line-height:1.7;padding-top:1.25rem;
+  border-top:1px solid var(--line);font-style:italic;
+}
+.reasoning::before{
+  content:'model note — ';
+  font-style:normal;color:var(--ink3);
+  font-size:.62rem;letter-spacing:.08em;
+  text-transform:uppercase;display:block;margin-bottom:.4rem;
+}
+
+.examples-section{margin-top:3.5rem}
+.examples-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:6px;margin-top:1rem;
+}
+.ex{cursor:pointer;position:relative;overflow:hidden}
+.ex img{
+  width:100%;aspect-ratio:1;object-fit:cover;display:block;
+  filter:saturate(.6);transition:filter .2s,transform .2s;
+}
+.ex:hover img{filter:saturate(1);transform:scale(1.05)}
+.ex-lbl{
+  position:absolute;bottom:0;left:0;right:0;
+  font-size:.52rem;letter-spacing:.1em;
+  background:rgba(43,35,24,.55);
+  color:rgba(247,243,237,.85);
+  padding:.25rem .4rem;text-align:center;
+}
+
+.site-foot{
+  margin-top:5rem;padding-top:1.5rem;
+  border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;gap:.75rem;
+}
+.site-foot span{font-size:.6rem;color:var(--ink3);letter-spacing:.06em}
+.model-pill{
+  font-size:.58rem;letter-spacing:.08em;
+  color:var(--ink2);border:1px solid var(--line);padding:.2rem .65rem;
+}
+
+@media(max-width:500px){
+  .examples-grid{grid-template-columns:repeat(3,1fr)}
+  .wrap{padding:2.5rem 1.25rem 4rem}
+  .site-head h1{font-size:1.6rem}
+}
+</style>
 </head>
 <body>
+<div class="wrap">
 
-<!-- Paper grain overlay -->
-<svg class="grain" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <filter id="noise">
-    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
-    <feColorMatrix values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0.06 0"/>
-  </filter>
-  <rect width="100%" height="100%" filter="url(#noise)"/>
-</svg>
+  <header class="site-head">
+    <h1>Chihuahua or <em>Muffin?</em></h1>
+    <p>svm · hog + color histogram &mdash; drop an image, the model decides</p>
+  </header>
 
-<!-- Masthead -->
-<header class="masthead">
-  <div class="masthead-row">
-    <div class="masthead-meta">VOL. 01 · ISSUE 001</div>
-    <div class="masthead-title">The Classifier</div>
-    <div class="masthead-meta meta-right">EfficientNet-B0 · ImageNet pretrained</div>
-  </div>
-  <div class="masthead-rule"></div>
-</header>
-
-<!-- Hero -->
-<section class="hero">
-  <div class="hero-eyebrow">A canonical exercise in computer vision</div>
-  <h1 class="hero-title">
-    <span class="display-italic">Chihuahua,</span>
-    <br/>
-    <span class="hero-or">or</span>
-    <span class="display-bold">Muffin?</span>
-  </h1>
-  <p class="hero-sub">
-    Upload an image. The model — fine-tuned from EfficientNet-B0 on your own
-    Google Drive dataset — will tell you which class it thinks it sees, and
-    how confidently.
-  </p>
-
-  <!-- Decorative chihuahua/muffin pair -->
-  <div class="hero-decor" aria-hidden="true">
-    <svg viewBox="0 0 120 80" class="decor-svg decor-chihuahua">
-      <!-- stylized chihuahua silhouette -->
-      <path d="M20 60 Q15 40 25 35 Q22 25 32 22 Q35 12 45 18 Q50 10 58 16 L60 22 Q70 18 75 28 Q88 30 90 42 L92 55 Q95 60 92 65 L78 65 L75 58 L60 60 L55 65 L40 65 L35 58 L30 65 L22 65 Z"
-            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-      <circle cx="40" cy="32" r="1.2" fill="currentColor"/>
-      <path d="M48 36 Q50 38 52 36" fill="none" stroke="currentColor" stroke-width="1.2"/>
-    </svg>
-    <span class="decor-vs">vs</span>
-    <svg viewBox="0 0 120 80" class="decor-svg decor-muffin">
-      <!-- stylized muffin silhouette -->
-      <path d="M25 35 Q25 18 45 18 Q50 10 60 16 Q70 10 75 18 Q95 18 95 35 L93 38 L27 38 Z"
-            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-      <path d="M22 38 L25 65 Q25 70 30 70 L90 70 Q95 70 95 65 L98 38 Z"
-            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-      <line x1="35" y1="45" x2="35" y2="65" stroke="currentColor" stroke-width="1"/>
-      <line x1="50" y1="45" x2="50" y2="65" stroke="currentColor" stroke-width="1"/>
-      <line x1="65" y1="45" x2="65" y2="65" stroke="currentColor" stroke-width="1"/>
-      <line x1="80" y1="45" x2="80" y2="65" stroke="currentColor" stroke-width="1"/>
-      <circle cx="42" cy="28" r="1.5" fill="currentColor"/>
-      <circle cx="58" cy="24" r="1.5" fill="currentColor"/>
-      <circle cx="74" cy="28" r="1.5" fill="currentColor"/>
-    </svg>
-  </div>
-</section>
-
-<!-- Main work area -->
-<main class="main">
-{% if not model_loaded %}
-  <div class="error-banner">
-    <div class="error-title">Model not loaded</div>
-    <div class="error-detail"><code>{{ model_error }}</code></div>
-    <div class="error-hint">
-      Set the <code>MODEL_PATH</code> environment variable to your trained
-      checkpoint, or place the <code>.pth</code> file at
-      <code>./model.pth</code> next to <code>app.py</code>.
+  <section class="upload-section">
+    <div class="label">image</div>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp"/>
+      <img id="preview" src="" alt="preview"/>
+      <div id="placeholder" class="drop-inner">
+        <div class="drop-glyph">&#8682;</div>
+        <h3>drop an image, or click to browse</h3>
+        <span>jpg &middot; png &middot; webp</span>
+      </div>
     </div>
-  </div>
-{% else %}
-
-  <div class="workbench">
-
-    <!-- LEFT: upload column -->
-    <section class="col col-upload">
-      <div class="col-label"><span>01</span> Input</div>
-
-      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload an image">
-        <input type="file" id="fileInput" accept="image/*" hidden />
-
-        <div class="dz-empty" id="dzEmpty">
-          <svg viewBox="0 0 64 64" class="dz-icon" aria-hidden="true">
-            <rect x="8" y="14" width="48" height="38" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <circle cx="22" cy="28" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M8 44 L22 32 L36 44 L46 36 L56 46" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
-          <div class="dz-text">
-            <strong>Drop an image</strong>
-            <span>or click to browse</span>
-          </div>
-          <div class="dz-hint">PNG · JPG · WEBP — up to 16 MB</div>
-        </div>
-
-        <div class="dz-preview" id="dzPreview" hidden>
-          <img id="previewImg" alt="Upload preview" />
-          <button class="dz-clear" id="clearBtn" type="button" aria-label="Clear">×</button>
-        </div>
-      </div>
-
-      <button id="predictBtn" class="btn-primary" disabled>
-        <span class="btn-label">Classify</span>
-        <span class="btn-arrow">→</span>
-      </button>
-
-      <div class="col-foot">
-        Image is processed locally on the server running this app.
-        Nothing is uploaded to a third-party service.
-      </div>
-    </section>
-
-    <!-- middle rule -->
-    <div class="col-divider" aria-hidden="true"></div>
-
-    <!-- RIGHT: results column -->
-    <section class="col col-result">
-      <div class="col-label"><span>02</span> Output</div>
-
-      <!-- Idle state -->
-      <div class="result-state result-idle" id="stateIdle">
-        <div class="result-placeholder">
-          <div class="placeholder-line"></div>
-          <div class="placeholder-line short"></div>
-        </div>
-        <p class="idle-copy">
-          Upload an image and press <em>Classify</em>. The model will return its
-          top prediction with a confidence score, plus the runners-up.
-        </p>
-      </div>
-
-      <!-- Loading state -->
-      <div class="result-state result-loading" id="stateLoading" hidden>
-        <div class="loader">
-          <span></span><span></span><span></span>
-        </div>
-        <p class="loading-copy">Running inference…</p>
-      </div>
-
-      <!-- Result state -->
-      <div class="result-state result-done" id="stateDone" hidden>
-        <div class="verdict-eyebrow">The model says</div>
-        <div class="verdict-class" id="verdictClass">—</div>
-        <div class="verdict-confidence">
-          <span class="conf-label">confidence</span>
-          <span class="conf-value" id="verdictConfidence">—</span>
-        </div>
-
-        <div class="ranking" id="ranking">
-          <!-- bars injected by JS -->
-        </div>
-      </div>
-
-      <!-- Error state -->
-      <div class="result-state result-error" id="stateError" hidden>
-        <div class="verdict-eyebrow err">Something went wrong</div>
-        <p class="error-msg" id="errorMsg">—</p>
-      </div>
-    </section>
-  </div>
-
-  <!-- Class roster -->
-  <section class="roster">
-    <div class="roster-label">Classes recognized by this model</div>
-    <ul class="roster-list">
-      {% for c in class_names %}
-        <li class="roster-item"><span class="roster-num">{{ '%02d' | format(loop.index) }}</span>{{ c }}</li>
-      {% endfor %}
-    </ul>
+    <button class="classify-btn" id="classify-btn" disabled>Classify &rarr;</button>
+    <div class="err" id="err-box"></div>
   </section>
 
-{% endif %}
-</main>
+  <section class="result-section">
+    <div class="label">prediction</div>
+    <div class="result-empty" id="empty-state">
+      <span class="big">?</span>
+      <p>waiting for an image</p>
+    </div>
+    <div class="spinner" id="spinner"></div>
+    <div class="result-card" id="result-card">
+      <div class="verdict-row">
+        <span class="verdict-word" id="verdict-word"></span>
+        <span class="verdict-pct" id="verdict-pct"></span>
+      </div>
+      <div class="bars" id="bars"></div>
+      <div class="reasoning" id="reasoning"></div>
+    </div>
+  </section>
 
-<!-- Colophon / footer -->
-<footer class="colophon">
-  <div class="colophon-rule"></div>
-  <div class="colophon-grid">
-    <div class="col-fact">
-      <div class="fact-label">Architecture</div>
-      <div class="fact-value">EfficientNet-B0</div>
-    </div>
-    <div class="col-fact">
-      <div class="fact-label">Pretraining</div>
-      <div class="fact-value">ImageNet 1K</div>
-    </div>
-    {% if model_loaded %}
-    <div class="col-fact">
-      <div class="fact-label">Classes</div>
-      <div class="fact-value">{{ num_classes }}</div>
-    </div>
-    {% if best_val_acc is not none %}
-    <div class="col-fact">
-      <div class="fact-label">Val accuracy</div>
-      <div class="fact-value">{{ '%.2f' | format(best_val_acc * 100) }}%</div>
-    </div>
-    {% endif %}
-    <div class="col-fact">
-      <div class="fact-label">Device</div>
-      <div class="fact-value">{{ device }}</div>
-    </div>
-    {% endif %}
-  </div>
-  <div class="colophon-credit">
-    Set in <em>Fraunces</em> &amp; <em>JetBrains Mono</em>. Served by Flask.
-  </div>
-</footer>
+  <section class="examples-section">
+    <div class="label">examples &mdash; click to try</div>
+    <div class="examples-grid" id="example-grid"></div>
+  </section>
 
-<script src="{{ url_for('static', filename='app.js') }}"></script>
+  <footer class="site-foot">
+    <span>chihuahuanet &middot; 2026</span>
+    <span class="model-pill">SVM · HOG + color · ~92.6% cv accuracy</span>
+  </footer>
+
+</div>
+<script>
+// ── Example images ────────────────────────────────────────────────────────────
+const EXAMPLES = [
+  { label:'CHIHUAHUA', tag:'dog',
+    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Cute_dog.jpg/320px-Cute_dog.jpg' },
+  { label:'CHIHUAHUA', tag:'dog',
+    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Dog_Breeds.jpg/320px-Dog_Breeds.jpg' },
+  { label:'CHIHUAHUA', tag:'dog',
+    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Chihuahua_Dog.jpg/320px-Chihuahua_Dog.jpg' },
+  { label:'MUFFIN', tag:'food',
+    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Blueberry_muffin_in_a_white_cup.jpg/320px-Blueberry_muffin_in_a_white_cup.jpg' },
+  { label:'MUFFIN', tag:'food',
+    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Fresh_made_muffins_in_a_muffin_tin.jpg/320px-Fresh_made_muffins_in_a_muffin_tin.jpg' },
+];
+const grid = document.getElementById('example-grid');
+EXAMPLES.forEach(ex => {
+  const card = document.createElement('div');
+  card.className = 'ex';
+  card.innerHTML = `
+    <img src="${ex.src}" alt="${ex.label}"
+         onerror="this.src='https://placehold.co/200x200/f0ead9/6b5c47?text=${encodeURIComponent(ex.label)}'"/>
+    <div class="ex-lbl">${ex.label}</div>`;
+  grid.appendChild(card);
+});
+
+// ── UI elements ───────────────────────────────────────────────────────────────
+const fileInput   = document.getElementById('file-input');
+const dropZone    = document.getElementById('drop-zone');
+const preview     = document.getElementById('preview');
+const placeholder = document.getElementById('placeholder');
+const btn         = document.getElementById('classify-btn');
+const emptyState  = document.getElementById('empty-state');
+const spinner     = document.getElementById('spinner');
+const errBox      = document.getElementById('err-box');
+const resultCard  = document.getElementById('result-card');
+const verdictWord = document.getElementById('verdict-word');
+const verdictPct  = document.getElementById('verdict-pct');
+const barsEl      = document.getElementById('bars');
+const reasoningEl = document.getElementById('reasoning');
+
+const ICONS = { Chihuahua:'🐕', Muffin:'🧁' };
+
+let selectedFile = null;
+
+function setPreview(file) {
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  preview.src = url;
+  preview.style.display = 'block';
+  placeholder.style.display = 'none';
+  btn.disabled = false;
+}
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) setPreview(fileInput.files[0]);
+});
+
+// Drag & drop
+['dragover','dragenter'].forEach(ev =>
+  dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('over'); }));
+['dragleave','dragend','drop'].forEach(ev =>
+  dropZone.addEventListener(ev, () => dropZone.classList.remove('over')));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer?.files[0];
+  if (f && f.type.startsWith('image/')) setPreview(f);
+});
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+function showLoading() {
+  emptyState.style.display = 'none';
+  resultCard.style.display = 'none';
+  errBox.style.display     = 'none';
+  spinner.style.display    = 'block';
+  btn.disabled = true;
+}
+function showError(msg) {
+  spinner.style.display = 'none';
+  errBox.textContent    = '⚠ ' + msg;
+  errBox.style.display  = 'block';
+  btn.disabled = false;
+}
+function showResult(data) {
+  spinner.style.display    = 'none';
+  resultCard.style.display = 'block';
+  btn.disabled = false;
+
+  const cls = data.class; // "Chihuahua" or "Muffin"
+  verdictWord.textContent = cls.toUpperCase();
+  verdictWord.className   = 'verdict-word ' + cls.toLowerCase();
+  verdictPct.textContent  = data.confidence + '% confidence';
+
+  // Bars from all_proba
+  barsEl.innerHTML = '';
+  Object.entries(data.all_proba).forEach(([label, pct]) => {
+    const row = document.createElement('div');
+    row.innerHTML = `
+      <div class="bar-meta"><span>${label}</span><span>${pct}%</span></div>
+      <div class="bar-track">
+        <div class="bar-fill ${label.toLowerCase()}" data-w="${pct}"></div>
+      </div>`;
+    barsEl.appendChild(row);
+  });
+  setTimeout(() => {
+    barsEl.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 60);
+
+  // Reasoning hidden in original script — keep reasoning el hidden
+  reasoningEl.style.display = 'none';
+}
+
+// ── Classify via Flask /predict ───────────────────────────────────────────────
+btn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  showLoading();
+  const fd = new FormData();
+  fd.append('image', selectedFile);
+  try {
+    const res  = await fetch('/predict', { method:'POST', body:fd });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      showError(data.error || `Server error ${res.status}`);
+    } else {
+      showResult(data);
+    }
+  } catch (err) {
+    showError('Network error — is the Flask server running? ' + err.message);
+  }
+});
+</script>
 </body>
 </html>

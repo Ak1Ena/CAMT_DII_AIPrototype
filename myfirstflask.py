@@ -1,10 +1,75 @@
-from flask import Flask,  flash, redirect, request, render_template, make_response, url_for
+from flask import Flask, flash, redirect, request, render_template, make_response, url_for, jsonify
 import json
-import sys 
-#import pandas as pd
+import io
+import base64
+import os
+import pickle
+import numpy as np
+from PIL import Image
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
+# ── Load model ────────────────────────────────────────────────────────────────
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
+
+try:
+    with open(MODEL_PATH, "rb") as f:
+        _model_data = pickle.load(f)
+    pipeline  = _model_data['pipeline']
+    CLASSES   = _model_data['classes']          # ["chihuahua", "muffin"]
+    IMG_SIZE  = _model_data['img_size']         # (128, 128)
+    print(f"[✓] Model loaded — classes: {CLASSES}, input size: {IMG_SIZE}")
+except Exception as e:
+    print(f"[!] Error loading model: {e}")
+    pipeline = None
+
+# ── Feature extraction functions ──────────────────────────────────────────────
+
+def hog_features(img_arr: np.ndarray) -> np.ndarray:
+    img = Image.fromarray((img_arr * 255).astype(np.uint8)).convert("L")
+    arr = np.array(img, dtype=np.float32)
+    gx = np.gradient(arr, axis=1)
+    gy = np.gradient(arr, axis=0)
+    mag = np.sqrt(gx**2 + gy**2)
+    ang = np.arctan2(gy, gx) * 180 / np.pi % 180
+    cell = 16
+    feats = []
+    for r in range(0, arr.shape[0], cell):
+        for c in range(0, arr.shape[1], cell):
+            m = mag[r:r+cell, c:c+cell]
+            a = ang[r:r+cell, c:c+cell]
+            hist, _ = np.histogram(a, bins=9, range=(0, 180), weights=m)
+            feats.extend(hist)
+    return np.array(feats)
+
+def color_histogram(img_arr: np.ndarray, bins: int = 32) -> np.ndarray:
+    feats = []
+    for ch in range(3):
+        hist, _ = np.histogram(img_arr[:, :, ch], bins=bins, range=(0, 1))
+        feats.extend(hist / (hist.sum() + 1e-8))
+    return np.array(feats)
+
+def extract_features(img_arr: np.ndarray) -> np.ndarray:
+    return np.concatenate([hog_features(img_arr), color_histogram(img_arr)])
+
+def preprocess(pil_image: Image.Image) -> np.ndarray:
+    img = pil_image.convert("RGB").resize(IMG_SIZE)
+    return np.array(img, dtype=np.float32) / 255.0
+
+def predict(pil_image: Image.Image):
+    if pipeline is None:
+        return "Error", 0, {}
+    arr   = preprocess(pil_image)
+    feats = extract_features(arr).reshape(1, -1)
+    proba = pipeline.predict_proba(feats)[0]
+    idx   = int(np.argmax(proba))
+    label = CLASSES[idx].capitalize()
+    conf  = round(float(proba[idx]) * 100, 1)
+    return label, conf, {c.capitalize(): round(float(p) * 100, 1)
+                         for c, p in zip(CLASSES, proba)}
+
+# ── Existing Routes ────────────────────────────────────────────────────
 @app.route("/") 
 def helloworld():
     return "Hello, World!"
@@ -188,6 +253,45 @@ def resume():
 </body>
 </html>
     """
+@app.route("/classify")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/predict", methods=["POST"])
+def predict_route():
+    if "image" not in request.files:
+        return jsonify({"error": "No image file in request"}), 400
+
+    file = request.files["image"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    try:
+        raw   = file.read()
+        image = Image.open(io.BytesIO(raw))
+
+        # Thumbnail for preview
+        thumb = image.copy()
+        thumb.thumbnail((420, 420))
+        buf = io.BytesIO()
+        thumb.convert("RGB").save(buf, format="JPEG", quality=85)
+        thumb_b64 = base64.b64encode(buf.getvalue()).decode()
+
+        label, confidence, all_proba = predict(image)
+
+        return jsonify({
+            "class":      label,
+            "confidence": confidence,
+            "all_proba":  all_proba,
+            "thumbnail":  thumb_b64,
+        })
+
+    except Exception as exc:
+        import traceback
+        return jsonify({"error": str(exc), "trace": traceback.format_exc()}), 500
+
+
 if __name__ == "__main__":   # run code 
     app.run(host='0.0.0.0',debug=True,port=5002)#host='0.0.0.0' = run on internet ,port=5002 (port บน server เหมือนประตู) / localhost รันบนเครื่องเรายังไม่ใช่ internet
 
